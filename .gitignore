@@ -1,0 +1,21 @@
+# Raw scenario data — too large to commit
+Data/
+
+# Dependencies
+web/node_modules/
+parser/node_modules/
+
+# Build output (built by CI)
+web/dist/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/

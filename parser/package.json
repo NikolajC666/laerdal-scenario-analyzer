@@ -1,0 +1,13 @@
+{
+  "name": "scenario-parser",
+  "version": "1.0.0",
+  "description": "Parses Laerdal .scx scenario files and outputs data.json",
+  "type": "module",
+  "scripts": {
+    "parse": "node parse.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "fast-xml-parser": "^4.4.1"
+  }
+}
