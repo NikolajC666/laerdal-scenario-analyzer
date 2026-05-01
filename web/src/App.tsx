@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ScenarioData, Variable } from './types';
+import type { ScenarioData, Variable, ValueStat } from './types';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Response: 'bg-blue-100 text-blue-800',
@@ -19,6 +19,40 @@ function Badge({ label, colorClass }: { label: string; colorClass: string }) {
     <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${colorClass}`}>
       {label}
     </span>
+  );
+}
+
+function ValueDistribution({ values }: { values: ValueStat[] }) {
+  const maxAssignments = values[0]?.assignments ?? 1;
+  return (
+    <tr className="bg-indigo-50 border-b border-indigo-100">
+      <td colSpan={6} className="px-6 py-3">
+        <div className="text-xs font-semibold text-indigo-700 mb-2">
+          Value distribution — {values.length} distinct value{values.length !== 1 ? 's' : ''}
+        </div>
+        <div className="grid gap-1" style={{ gridTemplateColumns: 'minmax(160px,2fr) 1fr 80px 72px' }}>
+          <div className="text-xs font-medium text-gray-500">Value</div>
+          <div className="text-xs font-medium text-gray-500">Frequency</div>
+          <div className="text-xs font-medium text-gray-500 text-right">Assignments</div>
+          <div className="text-xs font-medium text-gray-500 text-right">Scenarios</div>
+          {values.map(({ value, assignments, scenarios }) => (
+            <>
+              <div key={`v-${value}`} className="font-mono text-xs text-gray-800 truncate pr-2">{value}</div>
+              <div key={`b-${value}`} className="flex items-center">
+                <div className="w-full bg-indigo-100 rounded-full h-2">
+                  <div
+                    className="bg-indigo-500 h-2 rounded-full"
+                    style={{ width: `${(assignments / maxAssignments) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div key={`a-${value}`} className="text-xs text-gray-700 text-right">{assignments.toLocaleString()}</div>
+              <div key={`s-${value}`} className="text-xs text-gray-700 text-right">{scenarios.toLocaleString()}</div>
+            </>
+          ))}
+        </div>
+      </td>
+    </tr>
   );
 }
 
@@ -51,6 +85,7 @@ export default function App() {
   const [sortKey, setSortKey] = useState<'usedInCount' | 'usedInPercent' | 'id'>('usedInCount');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const PAGE_SIZE = 50;
 
   const allManikins = useMemo(() => {
@@ -98,6 +133,11 @@ export default function App() {
     setMinCount(1);
     setMinPercent(0);
     setPage(1);
+  }
+
+  function toggleExpand(v: Variable) {
+    if (!v.values) return;
+    setExpandedId((prev) => (prev === v.id ? null : v.id));
   }
 
   const SortIcon = ({ col }: { col: typeof sortKey }) =>
@@ -253,6 +293,7 @@ export default function App() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="text-left px-4 py-3 font-medium text-gray-600 w-6"></th>
                 <th
                   className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer hover:text-gray-900 select-none"
                   onClick={() => toggleSort('id')}
@@ -278,34 +319,48 @@ export default function App() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {paginated.map((v: Variable) => (
-                <tr key={v.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 font-mono text-xs text-gray-800 max-w-xs break-all">{v.id}</td>
-                  <td className="px-4 py-2.5">
-                    <Badge label={v.type} colorClass={TYPE_COLORS[v.type] ?? ''} />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <Badge label={v.category} colorClass={CATEGORY_COLORS[v.category] ?? ''} />
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-medium">{v.usedInCount}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="w-20 bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className="bg-indigo-500 h-1.5 rounded-full"
-                          style={{ width: `${v.usedInPercent}%` }}
-                        />
+                <>
+                  <tr
+                    key={v.id}
+                    onClick={() => toggleExpand(v)}
+                    className={`hover:bg-gray-50 ${v.values ? 'cursor-pointer' : ''} ${expandedId === v.id ? 'bg-indigo-50' : ''}`}
+                  >
+                    <td className="px-4 py-2.5 text-gray-400 text-xs w-6">
+                      {v.values
+                        ? expandedId === v.id ? '▾' : '▸'
+                        : ''}
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-gray-800 max-w-xs break-all">{v.id}</td>
+                    <td className="px-4 py-2.5">
+                      <Badge label={v.type} colorClass={TYPE_COLORS[v.type] ?? ''} />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Badge label={v.category} colorClass={CATEGORY_COLORS[v.category] ?? ''} />
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-medium">{v.usedInCount}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                          <div
+                            className="bg-indigo-500 h-1.5 rounded-full"
+                            style={{ width: `${v.usedInPercent}%` }}
+                          />
+                        </div>
+                        <span className="w-12 text-right">{v.usedInPercent}%</span>
                       </div>
-                      <span className="w-12 text-right">{v.usedInPercent}%</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500 max-w-xs">
-                    {v.manikins.join(', ')}
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-gray-500 max-w-xs">
+                      {v.manikins.join(', ')}
+                    </td>
+                  </tr>
+                  {expandedId === v.id && v.values && (
+                    <ValueDistribution key={`exp-${v.id}`} values={v.values} />
+                  )}
+                </>
               ))}
               {paginated.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                     No variables match the current filters.
                   </td>
                 </tr>

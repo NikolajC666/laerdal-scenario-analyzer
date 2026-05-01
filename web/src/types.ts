@@ -1,10 +1,17 @@
+export interface ValueStat {
+  value: string;
+  assignments: number;
+  scenarios: number;
+}
+
 export interface Variable {
   id: string;
   type: 'standard' | 'custom';
-  category: 'Response' | 'Event' | 'Drug' | 'Other';
+  category: 'Response' | 'Event' | 'Drug' | 'Timer' | 'Other';
   usedInCount: number;
   usedInPercent: number;
   manikins: string[];
+  values?: ValueStat[];
 }
 
 export interface Scenario {
