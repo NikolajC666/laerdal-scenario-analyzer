@@ -5,6 +5,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Response: 'bg-blue-100 text-blue-800',
   Event: 'bg-green-100 text-green-800',
   Drug: 'bg-orange-100 text-orange-800',
+  Timer: 'bg-purple-100 text-purple-800',
   Other: 'bg-gray-100 text-gray-700',
 };
 
@@ -187,6 +188,7 @@ export default function App() {
                 <option value="Response">Response</option>
                 <option value="Event">Event</option>
                 <option value="Drug">Drug</option>
+                <option value="Timer">Timer</option>
                 <option value="Other">Other</option>
               </select>
             </div>

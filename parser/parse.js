@@ -18,8 +18,10 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   isArray: (name) => [
-    'SingleValueResponse', 'Event', 'BoolEvent', 'IntEvent', 'EnumEvent',
-    'DrugEvent', 'ExecutionElement', 'Condition', 'Name',
+    'SingleValueResponse', 'TimerVariableResponse',
+    'Event', 'BoolEvent', 'IntEvent', 'EnumEvent', 'DrugEvent',
+    'UnsetEvent', 'StringEvent', 'DoubleEvent', 'CompositeViewItem',
+    'ExecutionElement', 'Condition', 'Name',
   ].includes(name),
   parseAttributeValue: false,
 });
@@ -47,7 +49,11 @@ function readZipEntry(zip, name) {
 
 // --- Collect all AA:Id values from any element type that carries one ---
 const ID_ATTR = '@_AA:Id';
-const EVENT_TAGS = ['Event', 'BoolEvent', 'IntEvent', 'EnumEvent', 'DrugEvent'];
+const ID_CARRYING_TAGS = new Set([
+  'SingleValueResponse', 'TimerVariableResponse',
+  'Event', 'BoolEvent', 'IntEvent', 'EnumEvent', 'DrugEvent',
+  'UnsetEvent', 'StringEvent', 'DoubleEvent', 'CompositeViewItem',
+]);
 
 function collectIds(node, ids = new Set()) {
   if (typeof node !== 'object' || node === null) return ids;
@@ -56,10 +62,7 @@ function collectIds(node, ids = new Set()) {
     return ids;
   }
   for (const [key, value] of Object.entries(node)) {
-    if (key === 'SingleValueResponse') {
-      const items = Array.isArray(value) ? value : [value];
-      for (const r of items) if (r[ID_ATTR]) ids.add(r[ID_ATTR]);
-    } else if (EVENT_TAGS.includes(key)) {
+    if (ID_CARRYING_TAGS.has(key)) {
       const items = Array.isArray(value) ? value : [value];
       for (const r of items) if (r[ID_ATTR]) ids.add(r[ID_ATTR]);
     } else {
@@ -113,7 +116,8 @@ function classify(id) {
   if (id.startsWith('Custom.Response.'))  return { type: 'custom',   category: 'Response' };
   if (id.startsWith('Custom.Event.'))     return { type: 'custom',   category: 'Event' };
   if (id.startsWith('Custom.Drug.'))      return { type: 'custom',   category: 'Drug' };
-  return { type: 'custom', category: 'Other' };
+  // TimerVariableResponse IDs (e.g. "PatientTime", "Time to Ventilation") have no namespace prefix
+  return { type: 'custom', category: 'Timer' };
 }
 
 // --- Main ---
