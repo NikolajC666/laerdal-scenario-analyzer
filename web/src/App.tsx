@@ -86,6 +86,7 @@ export default function App() {
   const [sortKey, setSortKey] = useState<'usedInCount' | 'usedInPercent' | 'id'>('usedInCount');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [page, setPage] = useState(1);
+  const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const PAGE_SIZE = 50;
 
@@ -124,7 +125,7 @@ export default function App() {
   }, [filtered, sortKey, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const paginated = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginated = showAll ? sorted : sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   function toggleSort(key: typeof sortKey) {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -141,6 +142,7 @@ export default function App() {
     setMinCount(1);
     setMinPercent(0);
     setPage(1);
+    setShowAll(false);
   }
 
   function toggleExpand(v: Variable) {
@@ -396,8 +398,8 @@ export default function App() {
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 text-sm">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
+              onClick={() => { setPage((p) => Math.max(1, p - 1)); setShowAll(false); }}
+              disabled={page === 1 || showAll}
               className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-50"
             >
               ← Prev
@@ -408,19 +410,25 @@ export default function App() {
               return (
                 <button
                   key={p}
-                  onClick={() => setPage(p)}
-                  className={`px-3 py-1 border rounded ${p === page ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-gray-50'}`}
+                  onClick={() => { setPage(p); setShowAll(false); }}
+                  className={`px-3 py-1 border rounded ${!showAll && p === page ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-gray-50'}`}
                 >
                   {p}
                 </button>
               );
             })}
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
+              onClick={() => { setPage((p) => Math.min(totalPages, p + 1)); setShowAll(false); }}
+              disabled={page === totalPages || showAll}
               className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-gray-50"
             >
               Next →
+            </button>
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className={`px-3 py-1 border rounded ${showAll ? 'bg-indigo-600 text-white border-indigo-600' : 'hover:bg-gray-50'}`}
+            >
+              All
             </button>
           </div>
         )}
