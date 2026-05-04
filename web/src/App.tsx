@@ -100,6 +100,20 @@ export default function App() {
     return [...new Set(data.scenarios.flatMap((s) => s.modules ?? []))].sort();
   }, [data]);
 
+  // Per-module variable counts, computed when a module filter is active
+  const moduleStats = useMemo(() => {
+    if (!data || moduleFilter === 'all') return null;
+    const moduleScenarios = data.scenarios.filter(s => (s.modules ?? []).includes(moduleFilter));
+    const total = moduleScenarios.length;
+    const varCount = new Map<string, number>();
+    for (const s of moduleScenarios) {
+      for (const id of s.variableIds) {
+        varCount.set(id, (varCount.get(id) ?? 0) + 1);
+      }
+    }
+    return { varCount, total };
+  }, [data, moduleFilter]);
+
   const filtered = useMemo(() => {
     if (!data) return [];
     return data.variables.filter((v) => {
@@ -107,22 +121,36 @@ export default function App() {
       if (categoryFilter !== 'all' && v.category !== categoryFilter) return false;
       if (manikinFilter !== 'all' && !v.manikins.includes(manikinFilter)) return false;
       if (moduleFilter !== 'all' && !(v.modules ?? []).includes(moduleFilter)) return false;
-      if (v.usedInCount < minCount) return false;
-      if (v.usedInPercent < minPercent) return false;
+      const count = moduleStats ? (moduleStats.varCount.get(v.id) ?? 0) : v.usedInCount;
+      const pct = moduleStats && moduleStats.total > 0
+        ? (count / moduleStats.total) * 100
+        : v.usedInPercent;
+      if (count < minCount) return false;
+      if (pct < minPercent) return false;
       if (searchText && !v.id.toLowerCase().includes(searchText.toLowerCase())) return false;
       return true;
     });
-  }, [data, typeFilter, categoryFilter, manikinFilter, moduleFilter, minCount, minPercent, searchText]);
+  }, [data, typeFilter, categoryFilter, manikinFilter, moduleFilter, moduleStats, minCount, minPercent, searchText]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
-      const va = a[sortKey] as string | number;
-      const vb = b[sortKey] as string | number;
+      let va: string | number;
+      let vb: string | number;
+      if (moduleStats && sortKey === 'usedInCount') {
+        va = moduleStats.varCount.get(a.id) ?? 0;
+        vb = moduleStats.varCount.get(b.id) ?? 0;
+      } else if (moduleStats && sortKey === 'usedInPercent') {
+        va = (moduleStats.varCount.get(a.id) ?? 0) / moduleStats.total;
+        vb = (moduleStats.varCount.get(b.id) ?? 0) / moduleStats.total;
+      } else {
+        va = a[sortKey] as string | number;
+        vb = b[sortKey] as string | number;
+      }
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filtered, sortKey, sortDir]);
+  }, [filtered, sortKey, sortDir, moduleStats]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const paginated = showAll ? sorted : sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -289,7 +317,7 @@ export default function App() {
                 Min usage count: <span className="text-indigo-600 font-bold">{minCount}</span>
               </label>
               <input
-                type="range" min={1} max={data.totalScenarios} value={minCount}
+                type="range" min={1} max={moduleStats ? moduleStats.total : data.totalScenarios} value={minCount}
                 onChange={(e) => { setMinCount(Number(e.target.value)); setPage(1); }}
                 className="w-full accent-indigo-600"
               />
@@ -343,7 +371,12 @@ export default function App() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginated.map((v: Variable) => (
+              {paginated.map((v: Variable) => {
+                const count = moduleStats ? (moduleStats.varCount.get(v.id) ?? 0) : v.usedInCount;
+                const pct = moduleStats && moduleStats.total > 0
+                  ? parseFloat(((count / moduleStats.total) * 100).toFixed(1))
+                  : v.usedInPercent;
+                return (
                 <>
                   <tr
                     key={v.id}
@@ -362,16 +395,16 @@ export default function App() {
                     <td className="px-4 py-2.5">
                       <Badge label={v.category} colorClass={CATEGORY_COLORS[v.category] ?? ''} />
                     </td>
-                    <td className="px-4 py-2.5 text-right font-medium">{v.usedInCount}</td>
+                    <td className="px-4 py-2.5 text-right font-medium">{count}</td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-20 bg-gray-200 rounded-full h-1.5">
                           <div
                             className="bg-indigo-500 h-1.5 rounded-full"
-                            style={{ width: `${v.usedInPercent}%` }}
+                            style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="w-12 text-right">{v.usedInPercent}%</span>
+                        <span className="w-12 text-right">{pct}%</span>
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-gray-500 max-w-xs">
@@ -382,7 +415,8 @@ export default function App() {
                     <ValueDistribution key={`exp-${v.id}`} values={v.values} />
                   )}
                 </>
-              ))}
+                );
+              })}
               {paginated.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
