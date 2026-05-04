@@ -11,12 +11,14 @@ export interface Variable {
   usedInCount: number;
   usedInPercent: number;
   manikins: string[];
+  modules: string[];
   values?: ValueStat[];
 }
 
 export interface Scenario {
   file: string;
   manikin: string;
+  modules: string[];
   variableIds: string[];
 }
 

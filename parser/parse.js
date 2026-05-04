@@ -11,6 +11,7 @@ const getArg = (flag, def) => {
 };
 const INPUT_DIR = getArg('--input', path.join(import.meta.dirname, '..', 'Data', 'OneDrive_2026-05-01', 'SCX Files'));
 const OUTPUT_FILE = getArg('--output', path.join(import.meta.dirname, '..', 'web', 'public', 'data.json'));
+const MODULES_FILE = getArg('--modules', path.join(import.meta.dirname, '..', 'Data', 'results.json'));
 const SAMPLE = parseInt(getArg('--sample', '0'), 10); // 0 = all files
 
 // --- XML parser config ---
@@ -25,6 +26,19 @@ const parser = new XMLParser({
   ].includes(name),
   parseAttributeValue: false,
 });
+
+// --- Load file→modules mapping from results.json ---
+const fileModulesMap = new Map(); // filename → Set<string>
+if (fs.existsSync(MODULES_FILE)) {
+  const entries = JSON.parse(fs.readFileSync(MODULES_FILE, 'utf8'));
+  for (const { file, set } of entries) {
+    if (!fileModulesMap.has(file)) fileModulesMap.set(file, new Set());
+    fileModulesMap.get(file).add(set);
+  }
+  console.log(`Loaded module mappings for ${fileModulesMap.size} files (${entries.length} entries)`);
+} else {
+  console.warn(`Modules file not found: ${MODULES_FILE}`);
+}
 
 // --- Collect all .scx file paths recursively ---
 function findScxFiles(dir) {
@@ -168,6 +182,7 @@ for (const scenario of scenarios) {
         ...classify(id),
         scenarioFiles: new Set(),
         manikins: new Set(),
+        modules: new Set(),
         // value -> { assignments, scenarioFiles }
         valueMap: new Map(),
       });
@@ -175,6 +190,7 @@ for (const scenario of scenarios) {
     const v = variableMap.get(id);
     v.scenarioFiles.add(scenario.file);
     v.manikins.add(scenario.manikin);
+    for (const mod of (fileModulesMap.get(scenario.file) ?? [])) v.modules.add(mod);
   }
 
   for (const { id, value } of scenario.valueAssignments) {
@@ -190,7 +206,7 @@ for (const scenario of scenarios) {
 
 const total = scenarios.length;
 const variables = [...variableMap.values()]
-  .map(({ id, type, category, scenarioFiles, manikins, valueMap }) => {
+  .map(({ id, type, category, scenarioFiles, manikins, modules, valueMap }) => {
     const base = {
       id,
       type,
@@ -198,6 +214,7 @@ const variables = [...variableMap.values()]
       usedInCount: scenarioFiles.size,
       usedInPercent: total > 0 ? parseFloat(((scenarioFiles.size / total) * 100).toFixed(1)) : 0,
       manikins: [...manikins].sort(),
+      modules: [...modules].sort(),
     };
     if (valueMap.size > 0) {
       base.values = [...valueMap.entries()]
@@ -220,6 +237,7 @@ const output = {
   scenarios: scenarios.map(({ file, manikin, variableIds }) => ({
     file,
     manikin,
+    modules: [...(fileModulesMap.get(file) ?? [])].sort(),
     variableIds,
   })),
 };

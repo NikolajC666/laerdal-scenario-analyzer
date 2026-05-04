@@ -80,6 +80,7 @@ export default function App() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'standard' | 'custom'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [manikinFilter, setManikinFilter] = useState<string>('all');
+  const [moduleFilter, setModuleFilter] = useState<string>('all');
   const [minCount, setMinCount] = useState(1);
   const [minPercent, setMinPercent] = useState(0);
   const [sortKey, setSortKey] = useState<'usedInCount' | 'usedInPercent' | 'id'>('usedInCount');
@@ -93,18 +94,24 @@ export default function App() {
     return [...new Set(data.scenarios.map((s) => s.manikin))].sort();
   }, [data]);
 
+  const allModules = useMemo(() => {
+    if (!data) return [];
+    return [...new Set(data.scenarios.flatMap((s) => s.modules ?? []))].sort();
+  }, [data]);
+
   const filtered = useMemo(() => {
     if (!data) return [];
     return data.variables.filter((v) => {
       if (typeFilter !== 'all' && v.type !== typeFilter) return false;
       if (categoryFilter !== 'all' && v.category !== categoryFilter) return false;
       if (manikinFilter !== 'all' && !v.manikins.includes(manikinFilter)) return false;
+      if (moduleFilter !== 'all' && !(v.modules ?? []).includes(moduleFilter)) return false;
       if (v.usedInCount < minCount) return false;
       if (v.usedInPercent < minPercent) return false;
       if (searchText && !v.id.toLowerCase().includes(searchText.toLowerCase())) return false;
       return true;
     });
-  }, [data, typeFilter, categoryFilter, manikinFilter, minCount, minPercent, searchText]);
+  }, [data, typeFilter, categoryFilter, manikinFilter, moduleFilter, minCount, minPercent, searchText]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -130,6 +137,7 @@ export default function App() {
     setTypeFilter('all');
     setCategoryFilter('all');
     setManikinFilter('all');
+    setModuleFilter('all');
     setMinCount(1);
     setMinPercent(0);
     setPage(1);
@@ -243,6 +251,21 @@ export default function App() {
               >
                 <option value="all">All manikins</option>
                 {allManikins.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Module */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Module</label>
+              <select
+                value={moduleFilter}
+                onChange={(e) => { setModuleFilter(e.target.value); setPage(1); }}
+                className="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 max-w-xs"
+              >
+                <option value="all">All modules</option>
+                {allModules.map((m) => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
